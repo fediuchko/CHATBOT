@@ -1,0 +1,23 @@
+{
+  "name": "express-demo",
+  "version": "1.0.0",
+  "description": "some description",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm test",
+    "start": "node ./server.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^1.18.3",
+    "connect-mongo": "^2.0.1",
+    "express": "^4.16.3",
+    "express-session": "^1.15.6",
+    "mongoose": "^5.2.3",
+    "path": "^0.12.7",
+    "save": "^2.3.2",
+    "socket.io": "^2.1.1"
+  },
+  "devDependencies": {}
+}
