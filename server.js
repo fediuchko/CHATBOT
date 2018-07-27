@@ -1,9 +1,7 @@
 var express = require('express')
 var app = express()
 var http = require('http').Server(app);
-
 var io = require('socket.io')(http);
-
 
 var messages = getArrayWithLimitedLength(100);
 var usersState = new Map();
@@ -38,47 +36,31 @@ var advise = [
     'Подихай свіжим повітрям',
     'Йди поїж чогось смачненького'
 ]
-//What the weather <day> in <city>?
 function getWeather(text) {
     let weatherEndPos = text.search("weather") + 8
-    console.log(`weatherEndPos - ${weatherEndPos}`)
     let afterDaySpacePos = text.indexOf(" ", weatherEndPos)
-    console.log(`afterDaySpacePos - ${afterDaySpacePos}`)
     let day = text.substr(weatherEndPos, afterDaySpacePos - weatherEndPos)
-    console.log(`day - ${day}`)
     let befoureCitySpacePos = afterDaySpacePos + 3;
     let city = text.substr(befoureCitySpacePos, text.indexOf("?") - befoureCitySpacePos)
-    console.log(`city - ${city}`)
     let temperature = Math.floor((Math.random() * 30) + 1);
     let temperatureState = "ok"
     if (temperature < 10) {
         temperatureState = "cold"
     } else if (temperature > 10 && temperature < 20) { temperatureState = "warm" }
     else { temperatureState = "hot" }
-    //The weather is cold in lviv today, temperature -5 C
-    sendNewChatBotMessage(`The weather is ${temperatureState} in ${city} ${day}, temperature ${temperature} C `)
+    newChatBotMessage(`The weather is ${temperatureState} in ${city} ${day}, temperature ${temperature} C `).send()
 
 }
 function getExchangedSumMessage(text) {
-    //find "to"
     let toPos = text.search("to")
-    console.log(`toPos - ${toPos}`)
     let currencyTo = text.substr(toPos + 2, text.length - (toPos + 2)).trim();
-    console.log(`currencyTo - ${currencyTo}`)
     let spaceBefoureStartCurrencyPos = text.lastIndexOf(' ', toPos - 2);
-    console.log(`spaceBefoureStartCurrencyPos - ${spaceBefoureStartCurrencyPos}`)
     let currencyFrom = text.substr(spaceBefoureStartCurrencyPos, toPos - spaceBefoureStartCurrencyPos).trim()
-    console.log(`currencyFrom - ${currencyFrom}`)
     let convertEndPos = text.search("Convert") + 7;
-    console.log(`convertEndPos - ${convertEndPos}`)
     let summStr = text.substr(convertEndPos, spaceBefoureStartCurrencyPos - convertEndPos).trim()
-    console.log(`summ - ${summStr}`)
     let summ = parseInt(summStr)
     let result = convertCarrency(summ, currencyFrom, currencyTo);
-    //20 dollars = 17.0960043 euro
-    sendNewChatBotMessage(`${summStr} ${currencyFrom}= ${result} ${currencyTo}`)
-
-
+    newChatBotMessage(`${summStr} ${currencyFrom}= ${result} ${currencyTo}`).send()
 }
 function getCoefficient(currency) {
     let coefficient = 1
@@ -96,7 +78,6 @@ function convertCarrency(amount, currencyFrom, currencyTo) {
     let result = amount * getCoefficient(currencyFrom) / getCoefficient(currencyTo)
     return result
 }
-
 
 function getQuote() {
     let randomQuotes = quotes[Math.floor(Math.random() * 4)];
@@ -151,15 +132,18 @@ function cutCommandFromNote(text) {
     let updatedText = text.substr(noteStartPossition, text.length - noteStartPossition);
     return updatedText
 }
-
-function sendNewChatBotMessage(text) {
-    var newMsgData = {
+// Factory pattern
+const newChatBotMessage = (text) => {
+    const newMsgData = {
         user: { nick: KEY_BOT, name: KEY_BOT },
         text: text
     };
-    messages.push(newMsgData);
-    io.emit('chat message', newMsgData)
-
+    return {
+        send: () => {
+            messages.push(newMsgData);
+            io.emit('chat message', newMsgData)
+        }
+    }
 }
 app.get('/', function (req, res) {
     res.sendFile(__dirname + '/index.html');
@@ -171,32 +155,8 @@ app.get('/client.js', function (req, res) {
 
 io.on('connection', function (socket) {
     console.log('client connected');
-
     socket.on('chat message', function (msg) {
         handleMessageInAppropriateWay(msg)
-        messages.push(msg);
-        io.emit('chat message', msg);
-        if (chekIfContainWord(msg.text, KEY_BOT)) {
-            if (chekIfContainWord(msg.text, KEY_SHOW_LIST_NOTE)) {
-                sendNewChatBotMessage(showNotes(msg.text))
-            } else if (chekIfContainWord(msg.text, KEY_SHOW_NOTE)) {
-                sendNewChatBotMessage(getNote(msg.text))
-            } else if (chekIfContainWord(msg.text, KEY_DELETE_NOTE)) {
-                deleteNote(msg.text)
-                sendNewChatBotMessage("Note successfuly deleted")
-            } else if (chekIfContainWord(msg.text, KEY_SAVE_NOTE)) {
-                saveNote(msg.text)
-                sendNewChatBotMessage("Note successfuly saved")
-            } else if (chekIfContainWord(msg.text, KEY_SHOW_QUOTE)) {
-                sendNewChatBotMessage(getQuote())
-            } else if (chekIfContainWord(msg.text, KEY_SHOW_ADVISE)) {
-                sendNewChatBotMessage(getAdvise())
-            } else if (chekIfContainWord(msg.text, KEY_EXCHANGE)) {
-                getExchangedSumMessage(msg.text)
-            } else if (chekIfContainWord(msg.text, KEY_WEATHER)) {
-                getWeather(msg.text)
-            }
-        }
     })
     socket.broadcast.emit('offlineUsersList', { offlineUsers: offlineUsers });
     socket.emit('chat history', messages);
@@ -231,45 +191,43 @@ io.on('connection', function (socket) {
     });
 
 });
-function handleMessageInAppropriateWay(msg){
-        messages.push(msg);
-        io.emit('chat message', msg);
-        if (chekIfContainWord(msg.text, KEY_BOT)) {
-            if (chekIfContainWord(msg.text, KEY_SHOW_LIST_NOTE)) {
-                sendNewChatBotMessage(showNotes(msg.text))
-            } else if (chekIfContainWord(msg.text, KEY_SHOW_NOTE)) {
-                sendNewChatBotMessage(getNote(msg.text))
-            } else if (chekIfContainWord(msg.text, KEY_DELETE_NOTE)) {
-                deleteNote(msg.text)
-                sendNewChatBotMessage("Note successfuly deleted")
-            } else if (chekIfContainWord(msg.text, KEY_SAVE_NOTE)) {
-                saveNote(msg.text)
-                sendNewChatBotMessage("Note successfuly saved")
-            } else if (chekIfContainWord(msg.text, KEY_SHOW_QUOTE)) {
-                sendNewChatBotMessage(getQuote())
-            } else if (chekIfContainWord(msg.text, KEY_SHOW_ADVISE)) {
-                sendNewChatBotMessage(getAdvise())
-            } else if (chekIfContainWord(msg.text, KEY_EXCHANGE)) {
-                getExchangedSumMessage(msg.text)
-            } else if (chekIfContainWord(msg.text, KEY_WEATHER)) {
-                getWeather(msg.text)
-            }
+// This is example of Fasade pattern
+function handleMessageInAppropriateWay(msg) {
+    messages.push(msg);
+    io.emit('chat message', msg);
+    if (chekIfContainWord(msg.text, KEY_BOT)) {
+        if (chekIfContainWord(msg.text, KEY_SHOW_LIST_NOTE)) {
+            newChatBotMessage(showNotes(msg.text)).send()
+        } else if (chekIfContainWord(msg.text, KEY_SHOW_NOTE)) {
+            newChatBotMessage(getNote(msg.text)).send()
+        } else if (chekIfContainWord(msg.text, KEY_DELETE_NOTE)) {
+            deleteNote(msg.text)
+            newChatBotMessage("Note successfuly deleted").send()
+        } else if (chekIfContainWord(msg.text, KEY_SAVE_NOTE)) {
+            saveNote(msg.text)
+            newChatBotMessage("Note successfuly saved").send()
+        } else if (chekIfContainWord(msg.text, KEY_SHOW_QUOTE)) {
+            newChatBotMessage(getQuote()).send()
+        } else if (chekIfContainWord(msg.text, KEY_SHOW_ADVISE)) {
+            newChatBotMessage(getAdvise()).send()
+        } else if (chekIfContainWord(msg.text, KEY_EXCHANGE)) {
+            getExchangedSumMessage(msg.text)
+        } else if (chekIfContainWord(msg.text, KEY_WEATHER)) {
+            getWeather(msg.text)
         }
     }
+}
+
 function getArrayWithLimitedLength(length) {
     var array = new Array();
-
     array.push = function () {
         if (this.length >= length) {
             this.shift();
         }
         return Array.prototype.push.apply(this, arguments);
     }
-
     return array;
-
 }
-
 
 http.listen(5000, function () {
     console.log('listening on :5000')

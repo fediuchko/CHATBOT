@@ -91,6 +91,7 @@ textInput.addEventListener('keypress', function (e, val) {
         socket.emit('stop typing', { userNick: nick });
     }, 5000);
 });
+
 textInput.addEventListener("keyup", function(event) {
     event.preventDefault();
     if (event.keyCode === 13) {
